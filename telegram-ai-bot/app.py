@@ -1,29 +1,21 @@
 import os
 from fastapi import FastAPI, Request
-from telegram import Update, Bot
+import requests
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 WEBHOOK_BASE = os.getenv("WEBHOOK_BASE")
 
-if not TOKEN or not WEBHOOK_BASE:
-    raise RuntimeError("请设置 TELEGRAM_BOT_TOKEN 和 WEBHOOK_BASE 环境变量")
-
-bot = Bot(TOKEN)
 app = FastAPI()
 
-@app.get("/")
-async def root():
-    return {"ok": True, "message": "Bot is running!"}
-
 @app.post(f"/webhook/{TOKEN}")
-async def telegram_webhook(request: Request):
+async def webhook(request: Request):
     data = await request.json()
-    update = Update.de_json(data, bot)
+    if "message" in data and "text" in data["message"]:
+        chat_id = data["message"]["chat"]["id"]
+        text = data["message"]["text"]
+        reply = f"你发了: {text}"
 
-    if update.message and update.message.text:
-        await bot.send_message(
-            chat_id=update.message.chat_id,
-            text=f"快速回复: {update.message.text}"
-        )
+        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+        requests.post(url, json={"chat_id": chat_id, "text": reply})
 
     return {"ok": True}
